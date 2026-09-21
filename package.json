@@ -1,0 +1,22 @@
+{
+  "name": "digital-culture-schools",
+  "version": "1.0.0",
+  "description": "Digital Culture Schools website for production deployment",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "school",
+    "education",
+    "digital-culture",
+    "landing-page"
+  ],
+  "author": "Digital Culture Schools",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}
