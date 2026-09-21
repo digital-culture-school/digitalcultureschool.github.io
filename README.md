@@ -1,49 +1,23 @@
-# Digital Culture Schools
+# Digital Culture Schools — مدارس الثقافة الرقمية
 
-A simple production-ready landing website for Digital Culture Schools, deployed on port 5008.
+منصة أخبار اجتماعية تعليمية تعمل على المنفذ `5008`.
 
-## Project structure
-
-- `public/` – static site files (HTML, CSS, JS)
-- `server.js` – Express server for production
-- `deploy/` – service scripts for start, stop, and restart
-- `.env.example` – environment variables example
-
-## Install dependencies
+## التشغيل
 
 ```bash
 npm install
-```
-
-## Run locally
-
-```bash
 npm start
 ```
 
-Then open:
+ثم افتح `http://SERVER-IP:5008`.
 
-```bash
-http://localhost:5008
-```
+## الدخول الافتراضي للمدير
 
-## Production deployment controls
+- البريد: `schools@admin.schools.info`
+- كلمة المرور: `this admin12345`
 
-```bash
-chmod +x deploy/start.sh deploy/restart.sh deploy/stop.sh
-./deploy/start.sh
-./deploy/restart.sh
-./deploy/stop.sh
-```
+## المزايا
 
-## Health check
+تسجيل بالبريد وكلمة المرور بدون Google أو تحقق بالبريد، صفحات الأخبار والملف الشخصي والإعجابات والمفضلة والتصنيفات والبحث والإشعارات، لوحة المدير، التحليلات، إنشاء وتعديل الأخبار ورفع الصور، إدارة المعلمين والحظر، وصفحات الخصوصية والشروط والمساعدة والتواصل.
 
-```bash
-curl http://localhost:5008/health
-```
-
-## Notes
-
-- Port is configured to `5008` by default.
-- This project is suitable for a live educational landing page.
-- You can later connect the site to a custom domain like `Digital-Culture-Schools`.
+> ملاحظة أمنية: النسخة الحالية تحفظ الحسابات والمنشورات في `localStorage` لتكون قابلة للتشغيل فوراً من دون قاعدة بيانات. بيانات المدير موجودة في كود الواجهة، لذلك يجب قبل النشر العام نقل المصادقة إلى خادم وقاعدة بيانات وتغيير كلمة المرور الافتراضية وعدم استخدام هذه النسخة كنظام أمان حقيقي.
