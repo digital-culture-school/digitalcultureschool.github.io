@@ -7,10 +7,10 @@ const storage = {
   notices: 'schoolNotices'
 };
 
+// حسابات البداية: المدير والمعلم فقط.
 const defaultUsers = [
-  { id: 'admin-1', name: 'المدير العام', email: 'admin@school.local', password: 'admin123', role: 'admin' },
-  { id: 'teacher-1', name: 'أحمد المعلم', email: 'teacher@school.local', password: 'teacher123', role: 'teacher' },
-  { id: 'student-1', name: 'سارة الطالب', email: 'student@school.local', password: 'student123', role: 'student' }
+  { id: 'admin-1', name: 'المدير العام', email: 'schools@1234567890.cools.admin', password: 'schools@12345765464', role: 'admin' },
+  { id: 'teacher-1', name: 'المعلم', email: 'cools@schools.info.cools.new', password: 'schools@newnewnew12345', role: 'teacher' }
 ];
 
 const defaultPosts = [
@@ -28,7 +28,7 @@ const defaultPosts = [
     id: 'post-2',
     title: 'إعلان اختبارات نهاية الفصل',
     text: 'سيتم إعلان جدول الاختبارات خلال الأيام القادمة، يرجى متابعة صفحة الأخبار.',
-    author: 'أحمد المعلم',
+    author: 'المعلم',
     role: 'teacher',
     pinned: false,
     image: '',
@@ -37,9 +37,9 @@ const defaultPosts = [
 ];
 
 const ensureStorage = () => {
-  if (!localStorage.getItem(storage.users)) {
-    localStorage.setItem(storage.users, JSON.stringify(defaultUsers));
-  }
+  // تطبيق بيانات الدخول الجديدة وإزالة حساب الطالب التجريبي والحسابات القديمة.
+  localStorage.setItem(storage.users, JSON.stringify(defaultUsers));
+
   if (!localStorage.getItem(storage.posts)) {
     localStorage.setItem(storage.posts, JSON.stringify(defaultPosts));
   }
@@ -247,7 +247,7 @@ function renderTeacher() {
     <div class="topbar">
       <div>
         <h1>نشر خبر جديد</h1>
-        <p class="muted">اكتب الخبر، أضف صورة optional، ثم انشره مباشرة.</p>
+        <p class="muted">اكتب الخبر، أضف صورة اختيارية، ثم انشره مباشرة.</p>
       </div>
       <div class="user-pill">${roleBadge(user.role)}</div>
     </div>
