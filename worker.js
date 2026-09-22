@@ -3,6 +3,11 @@ export default {
     const url = new URL(request.url);
     const pathname = url.pathname.replace(/\/+$/, '') || '/';
 
+    if (pathname.startsWith('/api/')) {
+      const { handleApi } = await import('./api.js');
+      return handleApi(request, env, url);
+    }
+
     const map = {
       '/': '/index.html',
       '/login': '/login.html',
@@ -11,22 +16,9 @@ export default {
       '/teacher': '/teacher.html'
     };
 
-    if (pathname.startsWith('/admin/')) {
-      return env.ASSETS.fetch(new Request(new URL('/admin.html', url), request));
-    }
-
-    if (pathname.startsWith('/teacher/')) {
-      return env.ASSETS.fetch(new Request(new URL('/teacher.html', url), request));
-    }
-
-    if (map[pathname]) {
-      return env.ASSETS.fetch(new Request(new URL(map[pathname], url), request));
-    }
-
-    if (pathname === '/index.html' || pathname === '/login.html' || pathname === '/dashboard.html' || pathname === '/admin.html' || pathname === '/teacher.html') {
-      return env.ASSETS.fetch(request);
-    }
-
+    if (pathname.startsWith('/admin/')) return env.ASSETS.fetch(new Request(new URL('/admin.html', url), request));
+    if (pathname.startsWith('/teacher/')) return env.ASSETS.fetch(new Request(new URL('/teacher.html', url), request));
+    if (map[pathname]) return env.ASSETS.fetch(new Request(new URL(map[pathname], url), request));
     return env.ASSETS.fetch(request);
   }
 };

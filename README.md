@@ -1,48 +1,51 @@
-# Digital Culture Schools — مدارس الثقافة الرقمية
+# ربط Cloudflare D1 وواجهة API
 
-منصة أخبار اجتماعية تعليمية تعمل على المنفذ `5008`.
+الموقع مستضاف على Cloudflare Workers، أما النسخة الحالية للواجهة فتعمل محلياً في المتصفح. تمت إضافة API آمن وقاعدة بيانات D1 بدون تغيير تصميم الصفحات.
 
-## تشغيل الموقع
+## الإعداد لمرة واحدة
 
-```bash
-npm install
-npm start
-```
-
-صفحة الموقع الرئيسية:
-
-```text
-http://localhost:5008
-```
-
-ومسار الصفحة المباشر:
-
-```text
-http://localhost:5008/site
-```
-
-من جهاز آخر استخدم عنوان الخادم:
-
-```text
-http://SERVER-IP:5008
-```
-
-فحص حالة الخادم:
-
-```text
-curl http://localhost:5008/health
-```
-
-## التشغيل بالخلفية
+نفذ من جهازك بعد تثبيت Wrangler وتسجيل الدخول:
 
 ```bash
-chmod +x deploy/*.sh
-./deploy/start.sh
+npx wrangler d1 create app-schools-db
 ```
 
-إذا كان الموقع على خادم خارجي، يجب فتح المنفذ `5008` في الجدار الناري أو إعداد Reverse Proxy.
+انسخ `database_id` الناتج إلى `wrangler.toml` بهذا الشكل:
 
-## دخول المدير
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "app-schools-db"
+database_id = "ضع_database_id_هنا"
+migrations_dir = "migrations"
+```
 
-- البريد: `schools@admin.schools.info`
-- كلمة المرور: `this admin12345`
+ثم نفذ migration:
+
+```bash
+npx wrangler d1 migrations apply app-schools-db --remote
+```
+
+بعدها انشر:
+
+```bash
+npx wrangler deploy
+```
+
+## نقاط API المضافة
+
+- `GET /api/health`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+- `GET /api/posts`
+- `POST /api/posts`
+- `POST /api/users` للمدير فقط
+
+## ملاحظات أمنية
+
+- كلمات المرور لا تُحفظ كنص صريح في D1؛ تستخدم PBKDF2.
+- الجلسة تحفظ في Cookie من نوع HttpOnly.
+- حسابات D1 لا تُنشأ تلقائياً حتى لا نضع كلمات مرور داخل المستودع.
+- يجب إنشاء أول مدير عبر أداة إدارة/تهيئة آمنة قبل استخدام API.
+- الحسابات القديمة الموجودة في localStorage لا تنتقل إلى D1 تلقائياً.
