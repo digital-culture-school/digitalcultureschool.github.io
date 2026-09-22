@@ -5,3 +5,9 @@ compatibility_date = "2026-09-22"
 [assets]
 directory = "./public"
 binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "app-schools-db"
+database_id = "REPLACE_WITH_YOUR_DATABASE_ID"
+migrations_dir = "migrations"

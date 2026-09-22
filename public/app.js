@@ -1,83 +1,14 @@
 const roleName = { admin: 'مدير', teacher: 'معلم', student: 'طالب' };
-const storage = {
-  users: 'schoolUsers',
-  posts: 'schoolPosts',
-  session: 'schoolSession',
-  favs: 'schoolFavs',
-  notices: 'schoolNotices'
-};
 
-// حسابات البداية: المدير والمعلم فقط.
-const defaultUsers = [
-  { id: 'admin-1', name: 'المدير العام', email: 'schools@1234567890.cools.admin', password: 'schools@12345765464', role: 'admin' },
-  { id: 'teacher-1', name: 'المعلم', email: 'cools@schools.info.cools.new', password: 'schools@newnewnew12345', role: 'teacher' }
-];
-
-const defaultPosts = [
-  {
-    id: 'post-1',
-    title: 'مرحباً بكم في منصة المدارس',
-    text: 'نرحب بكم في منصة مدارس الثقافة الرقمية، حيث يمكن للمدرسة مشاركة الأخبار والإنجازات.',
-    author: 'المدير العام',
-    role: 'admin',
-    pinned: true,
-    image: '',
-    date: new Date().toLocaleDateString('ar-EG')
-  },
-  {
-    id: 'post-2',
-    title: 'إعلان اختبارات نهاية الفصل',
-    text: 'سيتم إعلان جدول الاختبارات خلال الأيام القادمة، يرجى متابعة صفحة الأخبار.',
-    author: 'المعلم',
-    role: 'teacher',
-    pinned: false,
-    image: '',
-    date: new Date().toLocaleDateString('ar-EG')
-  }
-];
-
-const ensureStorage = () => {
-  // تطبيق بيانات الدخول الجديدة وإزالة حساب الطالب التجريبي والحسابات القديمة.
-  localStorage.setItem(storage.users, JSON.stringify(defaultUsers));
-
-  if (!localStorage.getItem(storage.posts)) {
-    localStorage.setItem(storage.posts, JSON.stringify(defaultPosts));
-  }
-  if (!localStorage.getItem(storage.favs)) {
-    localStorage.setItem(storage.favs, JSON.stringify([]));
-  }
-  if (!localStorage.getItem(storage.notices)) {
-    localStorage.setItem(storage.notices, JSON.stringify([]));
-  }
-};
-
-const read = (key, fallback = []) => {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const write = (key, value) => localStorage.setItem(key, JSON.stringify(value));
-const currentUser = () => read(storage.session, null);
 const normalizePath = () => (location.pathname || '/').replace(/\/+$/, '') || '/';
 const isAdminRoute = () => /\/admin(?:\/|$)/.test(normalizePath());
 const isTeacherRoute = () => /\/teacher(?:\/|$)/.test(normalizePath());
 const isDashboardRoute = () => normalizePath() === '/dashboard' || normalizePath() === '/';
 const isLoginRoute = () => normalizePath() === '/login' || normalizePath() === '/login.html';
 
-const navigate = (page) => {
-  location.href = page;
-};
+const navigate = (page) => { location.href = page; };
 
-const generateSecretRoute = (prefix) => {
-  const token = Math.random().toString(36).slice(2, 18);
-  return `/${prefix}/${token}`;
-};
-
-const escapeHtml = (value = '') => value
+const escapeHtml = (value = '') => String(value)
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;')
@@ -86,15 +17,42 @@ const escapeHtml = (value = '') => value
 
 const roleBadge = (role) => `<span class="role-badge">${roleName[role] || role}</span>`;
 
-function buildShell(content, active = 'home') {
-  const user = currentUser();
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    credentials: 'same-origin',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    }
+  });
+
+  const text = await response.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { message: text }; }
+
+  if (!response.ok) {
+    throw new Error(data.error || data.message || 'فشل الطلب');
+  }
+
+  return data;
+}
+
+async function getCurrentUser() {
+  try {
+    const data = await fetchJson('/api/auth/me');
+    return data.user || null;
+  } catch {
+    return null;
+  }
+}
+
+async function buildShell(content, active = 'home') {
+  const user = await getCurrentUser();
   if (!user) {
     navigate('/login');
     return;
   }
-
-  const adminSecret = generateSecretRoute('admin');
-  const teacherSecret = generateSecretRoute('teacher');
 
   document.getElementById('app').innerHTML = `
     <div class="app-shell">
@@ -106,8 +64,8 @@ function buildShell(content, active = 'home') {
 
         <nav class="nav">
           <a class="${active === 'home' ? 'active' : ''}" href="/dashboard">الرئيسية</a>
-          ${user.role === 'admin' ? `<a class="${active === 'admin' ? 'active' : ''}" href="${adminSecret}">رابط المدير السري</a>` : ''}
-          ${user.role !== 'student' ? `<a class="${active === 'teacher' ? 'active' : ''}" href="${teacherSecret}">رابط المعلم السري</a>` : ''}
+          ${user.role === 'admin' ? `<a class="${active === 'admin' ? 'active' : ''}" href="/admin">إدارة الحسابات</a>` : ''}
+          ${user.role === 'teacher' ? `<a class="${active === 'teacher' ? 'active' : ''}" href="/teacher">نشر خبر</a>` : ''}
           <a href="#" id="logoutBtn">تسجيل الخروج</a>
         </nav>
       </aside>
@@ -120,26 +78,29 @@ function buildShell(content, active = 'home') {
 
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', (e) => {
+    logoutBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      localStorage.removeItem(storage.session);
+      try {
+        await fetchJson('/api/auth/logout', { method: 'POST' });
+      } catch {}
       navigate('/login');
     });
   }
 }
 
-function renderHome() {
-  const user = currentUser();
+async function renderHome() {
+  const user = await getCurrentUser();
   if (!user) {
     navigate('/login');
     return;
   }
 
-  const posts = read(storage.posts, []).sort((a, b) => Number(b.pinned) - Number(a.pinned));
-  const favorites = read(storage.favs, []);
-  const notices = read(storage.notices, []);
+  const data = await fetchJson('/api/posts');
+  const posts = (data.posts || []).sort((a, b) => Number(b.pinned) - Number(a.pinned));
+  const favorites = posts.filter((p) => p.favorite).map((p) => p.id);
+  const notices = await fetchJson('/api/notices').catch(() => ({ notices: [] }));
 
-  buildShell(`
+  await buildShell(`
     <div class="topbar">
       <div>
         <h1>آخر الأخبار</h1>
@@ -151,17 +112,18 @@ function renderHome() {
     <div class="dashboard-grid">
       <section class="feeds" id="feed">
         ${posts.map((post) => {
-          const isFav = favorites.includes(post.id);
+          const isFav = !!post.favorite;
           const canManage = user.role !== 'student';
+          const authorRole = post.role || 'teacher';
           return `
             <article class="card post-card ${post.pinned ? 'pinned' : ''}">
               <div class="post-head">
                 <div>
-                  <strong>${escapeHtml(post.author)}</strong>
-                  ${roleBadge(post.role)}
+                  <strong>${escapeHtml(post.author || 'مدرسة')}</strong>
+                  ${roleBadge(authorRole)}
                 </div>
                 <div class="meta">
-                  <span>${escapeHtml(post.date)}</span>
+                  <span>${escapeHtml(new Date(post.created_at).toLocaleDateString('ar-EG'))}</span>
                   ${post.pinned ? '<span class="pin-tag">📌 مثبت</span>' : ''}
                 </div>
               </div>
@@ -183,7 +145,7 @@ function renderHome() {
       <aside class="sidebar-aside">
         <div class="card">
           <h3>الإشعارات</h3>
-          ${notices.length ? notices.slice(-5).reverse().map((n) => `<p class="notice-item">${escapeHtml(n)}</p>`).join('') : '<p class="muted">لا توجد إشعارات جديدة.</p>'}
+          ${(notices.notices || []).length ? (notices.notices || []).slice(-5).reverse().map((n) => `<p class="notice-item">${escapeHtml(n)}</p>`).join('') : '<p class="muted">لا توجد إشعارات جديدة.</p>'}
         </div>
 
         <div class="card stats-box">
@@ -201,49 +163,55 @@ function renderHome() {
 
 function bindCardActions() {
   document.querySelectorAll('.fav-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const id = btn.dataset.id;
-      const favs = read(storage.favs, []);
-      const updated = favs.includes(id) ? favs.filter((item) => item !== id) : [...favs, id];
-      write(storage.favs, updated);
-      renderHome();
+      try {
+        await fetchJson('/api/favorites', {
+          method: 'POST',
+          body: JSON.stringify({ post_id: id })
+        });
+      } catch (error) {
+        console.error(error);
+      }
+      await renderHome();
     });
   });
 
   document.querySelectorAll('.delete-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const id = btn.dataset.id;
-      const posts = read(storage.posts, []).filter((item) => item.id !== id);
-      write(storage.posts, posts);
-      const favs = read(storage.favs, []).filter((item) => item !== id);
-      write(storage.favs, favs);
-      renderHome();
+      try {
+        await fetchJson('/api/posts/' + id, { method: 'DELETE' });
+      } catch (error) {
+        console.error(error);
+      }
+      await renderHome();
     });
   });
 
   document.querySelectorAll('.pin-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const id = btn.dataset.id;
-      const posts = read(storage.posts, []).map((post) => {
-        if (post.id === id) {
-          return { ...post, pinned: !post.pinned };
-        }
-        return post;
-      });
-      write(storage.posts, posts);
-      renderHome();
+      try {
+        await fetchJson('/api/posts/' + id + '/pin', {
+          method: 'POST'
+        });
+      } catch (error) {
+        console.error(error);
+      }
+      await renderHome();
     });
   });
 }
 
-function renderTeacher() {
-  const user = currentUser();
-  if (!user || user.role === 'student') {
+async function renderTeacher() {
+  const user = await getCurrentUser();
+  if (!user || user.role !== 'teacher') {
     navigate('/dashboard');
     return;
   }
 
-  buildShell(`
+  await buildShell(`
     <div class="topbar">
       <div>
         <h1>نشر خبر جديد</h1>
@@ -273,7 +241,7 @@ function renderTeacher() {
   `, 'teacher');
 
   const form = document.getElementById('postForm');
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const title = document.getElementById('postTitle').value.trim();
     const text = document.getElementById('postText').value.trim();
@@ -285,39 +253,33 @@ function renderTeacher() {
       return;
     }
 
-    const posts = read(storage.posts, []);
-    const newPost = {
-      id: `post-${Date.now()}`,
-      title,
-      text,
-      author: user.name,
-      role: user.role,
-      image,
-      pinned: false,
-      date: new Date().toLocaleDateString('ar-EG')
-    };
-
-    write(storage.posts, [newPost, ...posts]);
-    const notices = read(storage.notices, []);
-    write(storage.notices, [...notices, `${user.name} نشر خبراً جديداً`]);
-    navigate('/dashboard');
+    try {
+      await fetchJson('/api/posts', {
+        method: 'POST',
+        body: JSON.stringify({ title, text, image })
+      });
+      navigate('/dashboard');
+    } catch (error) {
+      message.textContent = error.message;
+    }
   });
 }
 
-function renderAdmin() {
-  const user = currentUser();
+async function renderAdmin() {
+  const user = await getCurrentUser();
   if (!user || user.role !== 'admin') {
     navigate('/dashboard');
     return;
   }
 
-  const users = read(storage.users, []);
+  const usersData = await fetchJson('/api/users').catch(() => ({ users: [] }));
+  const users = usersData.users || [];
 
-  buildShell(`
+  await buildShell(`
     <div class="topbar">
       <div>
         <h1>إدارة الحسابات</h1>
-        <p class="muted">يمكنك إنشاء حسابات للمعلمين والطلاب بشكل مباشر.</p>
+        <p class="muted">يمكنك إنشاء حسابات للمعلمين بشكل مباشر.</p>
       </div>
       <div class="user-pill">${roleBadge(user.role)}</div>
     </div>
@@ -338,7 +300,6 @@ function renderAdmin() {
           <label>الدور
             <select id="userRole">
               <option value="teacher">معلم</option>
-              <option value="student">طالب</option>
               <option value="admin">مدير</option>
             </select>
           </label>
@@ -358,7 +319,7 @@ function renderAdmin() {
               </div>
               <div class="user-actions">
                 ${roleBadge(item.role)}
-                ${item.id !== 'admin-1' ? `<button class="btn small danger delete-user" data-id="${item.id}">حذف</button>` : ''}
+                ${item.id !== user.id ? `<button class="btn small danger delete-user" data-id="${item.id}">حذف</button>` : ''}
               </div>
             </div>
           `).join('')}
@@ -367,7 +328,7 @@ function renderAdmin() {
     </div>
   `, 'admin');
 
-  document.getElementById('userForm').addEventListener('submit', (e) => {
+  document.getElementById('userForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('userName').value.trim();
     const email = document.getElementById('userEmail').value.trim();
@@ -380,31 +341,26 @@ function renderAdmin() {
       return;
     }
 
-    const users = read(storage.users, []);
-    if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
-      message.textContent = 'هذا البريد مستخدم بالفعل.';
-      return;
+    try {
+      await fetchJson('/api/users', {
+        method: 'POST',
+        body: JSON.stringify({ name, email, password, role })
+      });
+      await renderAdmin();
+    } catch (error) {
+      message.textContent = error.message;
     }
-
-    const newUser = {
-      id: `user-${Date.now()}`,
-      name,
-      email,
-      password,
-      role
-    };
-
-    write(storage.users, [...users, newUser]);
-    write(storage.notices, [...read(storage.notices, []), `تم إنشاء حساب جديد: ${name}`]);
-    renderAdmin();
   });
 
   document.querySelectorAll('.delete-user').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const id = btn.dataset.id;
-      const users = read(storage.users, []).filter((item) => item.id !== id);
-      write(storage.users, users);
-      renderAdmin();
+      try {
+        await fetchJson('/api/users/' + id, { method: 'DELETE' });
+      } catch (error) {
+        console.error(error);
+      }
+      await renderAdmin();
     });
   });
 }
@@ -413,39 +369,32 @@ function initLoginPage() {
   const form = document.getElementById('loginForm');
   if (!form) return;
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value.trim();
     const message = document.getElementById('loginMessage');
 
-    const users = read(storage.users, []);
-    const matched = users.find((user) => user.email.toLowerCase() === email.toLowerCase() && user.password === password);
+    try {
+      const user = await fetchJson('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
 
-    if (!matched) {
-      message.textContent = 'البريد أو كلمة المرور غير صحيحة.';
-      return;
+      if (user.user.role === 'admin') {
+        navigate('/admin');
+      } else if (user.user.role === 'teacher') {
+        navigate('/teacher');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      message.textContent = error.message;
     }
-
-    write(storage.session, matched);
-
-    if (matched.role === 'admin') {
-      navigate(`/admin/${Math.random().toString(36).slice(2, 18)}`);
-      return;
-    }
-
-    if (matched.role === 'teacher') {
-      navigate(`/teacher/${Math.random().toString(36).slice(2, 18)}`);
-      return;
-    }
-
-    navigate('/dashboard');
   });
 }
 
-function init() {
-  ensureStorage();
-
+async function init() {
   const path = normalizePath();
 
   if (isLoginRoute()) {
@@ -453,30 +402,35 @@ function init() {
     return;
   }
 
+  const user = await getCurrentUser();
+
   if (isAdminRoute()) {
-    const user = currentUser();
     if (!user || user.role !== 'admin') {
       navigate('/login');
       return;
     }
-    renderAdmin();
+    await renderAdmin();
     return;
   }
 
   if (isTeacherRoute()) {
-    const user = currentUser();
     if (!user || user.role !== 'teacher') {
       navigate('/login');
       return;
     }
-    renderTeacher();
+    await renderTeacher();
     return;
   }
 
   if (isDashboardRoute()) {
-    renderHome();
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    await renderHome();
     return;
   }
 }
 
 document.addEventListener('DOMContentLoaded', init);
+

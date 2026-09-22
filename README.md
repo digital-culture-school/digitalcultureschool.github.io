@@ -1,51 +1,40 @@
-# ربط Cloudflare D1 وواجهة API
+# Digital Culture Schools — مدارس الثقافة الرقمية
 
-الموقع مستضاف على Cloudflare Workers، أما النسخة الحالية للواجهة فتعمل محلياً في المتصفح. تمت إضافة API آمن وقاعدة بيانات D1 بدون تغيير تصميم الصفحات.
+منصة أخبار اجتماعية تعليمية تعمل على Cloudflare Workers.
 
-## الإعداد لمرة واحدة
+## متطلبات التشغيل
 
-نفذ من جهازك بعد تثبيت Wrangler وتسجيل الدخول:
+- Node.js 20+
+- Wrangler
+- حساب Cloudflare
+
+## إنشاء قاعدة بيانات D1
 
 ```bash
+npx wrangler login
 npx wrangler d1 create app-schools-db
 ```
 
-انسخ `database_id` الناتج إلى `wrangler.toml` بهذا الشكل:
+انسخ `database_id` الذي يظهر، ثم ضع القيمة في `wrangler.toml`.
 
-```toml
-[[d1_databases]]
-binding = "DB"
-database_name = "app-schools-db"
-database_id = "ضع_database_id_هنا"
-migrations_dir = "migrations"
-```
-
-ثم نفذ migration:
+## تشغيل migrations
 
 ```bash
 npx wrangler d1 migrations apply app-schools-db --remote
 ```
 
-بعدها انشر:
+## النشر النهائي
 
 ```bash
 npx wrangler deploy
 ```
 
-## نقاط API المضافة
+## حسابات البداية
 
-- `GET /api/health`
-- `POST /api/auth/login`
-- `POST /api/auth/logout`
-- `GET /api/auth/me`
-- `GET /api/posts`
-- `POST /api/posts`
-- `POST /api/users` للمدير فقط
+يجب إنشاء أول مدير بعد ربط D1، ثم إنشاء الحسابات من لوحة المدير.
 
-## ملاحظات أمنية
+## الروابط
 
-- كلمات المرور لا تُحفظ كنص صريح في D1؛ تستخدم PBKDF2.
-- الجلسة تحفظ في Cookie من نوع HttpOnly.
-- حسابات D1 لا تُنشأ تلقائياً حتى لا نضع كلمات مرور داخل المستودع.
-- يجب إنشاء أول مدير عبر أداة إدارة/تهيئة آمنة قبل استخدام API.
-- الحسابات القديمة الموجودة في localStorage لا تنتقل إلى D1 تلقائياً.
+```text
+https://app-schools.opencodexandpasscard.workers.dev/login
+```
