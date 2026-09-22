@@ -61,11 +61,20 @@ const read = (key, fallback = []) => {
 };
 
 const write = (key, value) => localStorage.setItem(key, JSON.stringify(value));
-
 const currentUser = () => read(storage.session, null);
+const normalizePath = () => (location.pathname || '/').replace(/\/+$/, '') || '/';
+const isAdminRoute = () => /\/admin(?:\/|$)/.test(normalizePath());
+const isTeacherRoute = () => /\/teacher(?:\/|$)/.test(normalizePath());
+const isDashboardRoute = () => normalizePath() === '/dashboard' || normalizePath() === '/';
+const isLoginRoute = () => normalizePath() === '/login' || normalizePath() === '/login.html';
 
 const navigate = (page) => {
   location.href = page;
+};
+
+const generateSecretRoute = (prefix) => {
+  const token = Math.random().toString(36).slice(2, 18);
+  return `/${prefix}/${token}`;
 };
 
 const escapeHtml = (value = '') => value
@@ -80,9 +89,12 @@ const roleBadge = (role) => `<span class="role-badge">${roleName[role] || role}<
 function buildShell(content, active = 'home') {
   const user = currentUser();
   if (!user) {
-    navigate('login.html');
+    navigate('/login');
     return;
   }
+
+  const adminSecret = generateSecretRoute('admin');
+  const teacherSecret = generateSecretRoute('teacher');
 
   document.getElementById('app').innerHTML = `
     <div class="app-shell">
@@ -93,10 +105,9 @@ function buildShell(content, active = 'home') {
         </div>
 
         <nav class="nav">
-          <a class="${active === 'home' ? 'active' : ''}" href="dashboard.html">الرئيسية</a>
-          <a class="${active === 'feed' ? 'active' : ''}" href="dashboard.html#feed">آخر الأخبار</a>
-          ${user.role === 'admin' ? `<a class="${active === 'admin' ? 'active' : ''}" href="admin.html">إدارة الحسابات</a>` : ''}
-          ${user.role !== 'student' ? `<a class="${active === 'teacher' ? 'active' : ''}" href="teacher.html">نشر خبر</a>` : ''}
+          <a class="${active === 'home' ? 'active' : ''}" href="/dashboard">الرئيسية</a>
+          ${user.role === 'admin' ? `<a class="${active === 'admin' ? 'active' : ''}" href="${adminSecret}">رابط المدير السري</a>` : ''}
+          ${user.role !== 'student' ? `<a class="${active === 'teacher' ? 'active' : ''}" href="${teacherSecret}">رابط المعلم السري</a>` : ''}
           <a href="#" id="logoutBtn">تسجيل الخروج</a>
         </nav>
       </aside>
@@ -112,7 +123,7 @@ function buildShell(content, active = 'home') {
     logoutBtn.addEventListener('click', (e) => {
       e.preventDefault();
       localStorage.removeItem(storage.session);
-      navigate('login.html');
+      navigate('/login');
     });
   }
 }
@@ -120,7 +131,7 @@ function buildShell(content, active = 'home') {
 function renderHome() {
   const user = currentUser();
   if (!user) {
-    navigate('login.html');
+    navigate('/login');
     return;
   }
 
@@ -228,7 +239,7 @@ function bindCardActions() {
 function renderTeacher() {
   const user = currentUser();
   if (!user || user.role === 'student') {
-    navigate('dashboard.html');
+    navigate('/dashboard');
     return;
   }
 
@@ -288,19 +299,15 @@ function renderTeacher() {
 
     write(storage.posts, [newPost, ...posts]);
     const notices = read(storage.notices, []);
-    writesNotice(notices, `${user.name} نشر خبراً جديداً`);
-    navigate('dashboard.html');
+    write(storage.notices, [...notices, `${user.name} نشر خبراً جديداً`]);
+    navigate('/dashboard');
   });
-}
-
-function writesNotice(notices, item) {
-  write(storage.notices, [...notices, item]);
 }
 
 function renderAdmin() {
   const user = currentUser();
   if (!user || user.role !== 'admin') {
-    navigate('dashboard.html');
+    navigate('/dashboard');
     return;
   }
 
@@ -421,31 +428,52 @@ function initLoginPage() {
     }
 
     write(storage.session, matched);
-    navigate('dashboard.html');
+
+    if (matched.role === 'admin') {
+      navigate(`/admin/${Math.random().toString(36).slice(2, 18)}`);
+      return;
+    }
+
+    if (matched.role === 'teacher') {
+      navigate(`/teacher/${Math.random().toString(36).slice(2, 18)}`);
+      return;
+    }
+
+    navigate('/dashboard');
   });
 }
 
 function init() {
   ensureStorage();
 
-  const path = location.pathname.split('/').pop();
+  const path = normalizePath();
 
-  if (path === 'login.html') {
+  if (isLoginRoute()) {
     initLoginPage();
     return;
   }
 
-  if (path === 'admin.html') {
+  if (isAdminRoute()) {
+    const user = currentUser();
+    if (!user || user.role !== 'admin') {
+      navigate('/login');
+      return;
+    }
     renderAdmin();
     return;
   }
 
-  if (path === 'teacher.html') {
+  if (isTeacherRoute()) {
+    const user = currentUser();
+    if (!user || user.role !== 'teacher') {
+      navigate('/login');
+      return;
+    }
     renderTeacher();
     return;
   }
 
-  if (path === 'dashboard.html' || path === '') {
+  if (isDashboardRoute()) {
     renderHome();
     return;
   }
